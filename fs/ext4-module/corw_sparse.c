@@ -31,7 +31,7 @@
 
 #include <linux/iomap.h>
 #include <linux/timekeeping.h>
-
+#include <linux/moduleparam.h>
 enum batching_type
 {
 	NOT_STARTED,
@@ -213,7 +213,10 @@ struct task_struct *page_copy_thread = 0;
 struct inode_policy *inode_policy = 0;
 struct extent_policy *extent_policy = 0;
 struct kobject *scorw_sysfs_kobject = 0;
+int panic_point = 0;
 
+module_param(panic_point , int, 0644);
+MODULE_PARM_DESC(panic_point , "Set this to trigger Kernel crashes at different points");
 
 unsigned long long last_recovery_time_us = 0;
 int stop_page_copy_thread = 0;
@@ -1386,7 +1389,7 @@ int scorw_is_opened_first_time(struct inode * inode){
  * Scans the log file and truncates any records that exceed the safely
  * committed version stored in the parent's xattr. Also discards partial records.
  */
-void scorw_truncate_log_to_version(struct scorw_inode *s_inode)
+static void scorw_truncate_log_to_version(struct scorw_inode *s_inode)
 {
 	struct inode *log_inode = s_inode->i_log_vfs_inode;
 	loff_t log_size, offset = 0;
@@ -1456,7 +1459,7 @@ do_truncate:
 	}
 }
 
-void scorw_do_recovery(struct scorw_inode * scorw_inode , struct inode * inode){
+static void scorw_do_recovery(struct scorw_inode * scorw_inode , struct inode * inode){
 	struct inode *log_inode = scorw_inode->i_log_vfs_inode;
 	struct inode *par_inode = inode;
 	loff_t log_size;
@@ -1564,14 +1567,14 @@ void scorw_do_recovery(struct scorw_inode * scorw_inode , struct inode * inode){
 
 	/* 4. Truncate parent if it has orphaned blocks (Parent has it, Log doesn't) */
 	actual_size = i_size_read(par_inode);
-	printk("{%s} :: For inode=%lu from actual=%lu expected=%lu" , __func__ , par_inode->i_ino , actual_size , expected_end);
+	//Commentedprintk("{%s} :: For inode=%lu from actual=%lu expected=%lu" , __func__ , par_inode->i_ino , actual_size , expected_end);
 	
 	if (actual_size > expected_end) {
 		loff_t trimmed_log_end = 0;
 		int trimmed_version = 0;
 
-		printk("{%s} :: For inode=%lu from actual=%lu expected=%lu , Yo I'm inside if condition",
-							  __func__ , par_inode->i_ino , actual_size , expected_end);
+		//Commentedprintk("{%s} :: For inode=%lu from actual=%lu expected=%lu , Yo I'm inside if condition",
+							  //__func__ , par_inode->i_ino , actual_size , expected_end);
 		/* Find the last log record that is within the expected_end */
 		for (offset = 0; offset < valid_log_end; offset += record_size) {
 			pgoff_t pg2  = offset >> PAGE_SHIFT;
@@ -1607,7 +1610,7 @@ void scorw_do_recovery(struct scorw_inode * scorw_inode , struct inode * inode){
 		}
 
 		/* Truncate parent file to expected_end */
-		printk("{%s} :: Going to trim inode=%lu from %lu->%lu" , __func__ , par_inode->i_ino , actual_size , expected_end);
+		//Commentedprintk("{%s} :: Going to trim inode=%lu from %lu->%lu" , __func__ , par_inode->i_ino , actual_size , expected_end);
 		inode_lock(par_inode);
 		truncate_setsize(par_inode, expected_end);
 		EXT4_I(par_inode)->i_disksize = expected_end;
@@ -2506,7 +2509,7 @@ ssize_t scorw_read_from_parent(struct scorw_inode *s_inode, struct kiocb *iocb, 
 	loff_t logical_size;
 	struct inode *read_inode;
 	size_t orig_count = iov_iter_count(to);
-	size_t max_read, bytes_to_page_end;
+	size_t bytes_to_page_end;
 
 	if (s_inode->i_par_vfs_inode) 
 		read_inode = s_inode->i_par_vfs_inode;
@@ -5012,7 +5015,7 @@ struct gc_block_state {
 
 // Find the smallest active version >= target_ver. 
 // Returns -1 if no active version >= target_ver.
-static int scorw_gc_closest_active(int target_ver, int *active_vers, int num_active)
+/*static int scorw_gc_closest_active(int target_ver, int *active_vers, int num_active)
 {
     int i;
     for (i = 0; i < num_active; i++) {
@@ -5020,7 +5023,7 @@ static int scorw_gc_closest_active(int target_ver, int *active_vers, int num_act
             return active_vers[i];
     }
     return -1;
-}
+}*/
 
 // Helper to punch a hole for a contiguous range of blocks
 void scorw_punch_hole_range(struct inode *inode, ext4_lblk_t start_lblk, ext4_lblk_t len_blks)
@@ -5430,8 +5433,8 @@ static int writeback_inode(struct inode * inode){
 }
 */
 
-static void scorw_help_write_and_wait(struct inode* inode , struct file * file){
-	/*char * err_msg = "WEIRD_ERROR";
+/*static void scorw_help_write_and_wait(struct inode* inode , struct file * file){
+	char * err_msg = "WEIRD_ERROR";
 	int ret;
 
 	ret = filemap_fdatawrite(inode->i_mapping);
@@ -5450,10 +5453,10 @@ static void scorw_help_write_and_wait(struct inode* inode , struct file * file){
 		return;
 	} 
 	//Commentedprintk("Yayyyyyyyyyyyyyyyy , file synced\n");
-*/
+
 	return;
 }
-
+*/
 /*calling with val=SET_TRANSACTION increases scorw_inode->version by 1*/
 long scorw_set_transaction(struct inode* inode , struct file * file , int val){
 	int ret;
@@ -5494,7 +5497,14 @@ long scorw_set_transaction(struct inode* inode , struct file * file , int val){
 			 * deferred to pending_log_sync_list at unmount.
 			 * This ensures log records survive a crash. */
 			if (log_inode && !IS_ERR(log_inode)) {
+				
+				if(panic_point == 1){
+					panic("Panic at point 1");
+				}
 				filemap_write_and_wait(log_inode->i_mapping);
+				if(panic_point == 2){
+					panic("Panic at point 2");
+				}
 				sync_inode_metadata(log_inode, 1);
 			}
 		}
