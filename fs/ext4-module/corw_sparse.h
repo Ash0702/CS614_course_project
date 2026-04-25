@@ -8,7 +8,6 @@
 #define MIN_HASH_TABLE_SIZE 16 // 16 linked lists in hash table
 #define MAX_VERSIONS 32
 // Assumption: Info about largest chunk's copy status will fit into a page
-
 #define PAGE_BYTES (PAGE_SIZE)
 #define PAGE_BITS (PAGE_BYTES << 3)
 #define PAGE_BLOCKS (PAGE_BITS)
@@ -17,6 +16,7 @@
 #define CHILD_RANGE_LEN 16
 
 // MAHA_AARSH_start
+
 #include <linux/xarray.h>
 #define BLK_NOT_FOUND ~0UL
 struct kiocb;
@@ -85,16 +85,9 @@ struct scorw_log_record {
   __u32 logical_start_blk;  // Where the user wrote it (e.g., Block 5)
   __u64 physical_start_blk; // Where Ext4 actually put it on disk
   __u32 len_blks;           // How many blocks were written contiguously
-  __u32 padding;            // Ensures 64-bit memory alignment
+  __u32 data_crc32c;        // Ensures 64-bit memory alignment & Checksum
   __u64 padding2;           // Ensures 32bytes , which can divide 4Kb
 };
-/* Helper struct for syncying par and log*/
-struct scorw_gc_sync_par_log {
-  __u32 version_num;
-  loff_t log_end_offset;
-  loff_t par_latest_logical_block;
-};
-
 // 2. RAM STRUCTURE: The fast lookup tree for a single version.
 struct scorw_version {
   int version_num;
@@ -436,7 +429,7 @@ void scorw_read_barrier_end(struct scorw_inode *p_scorw_inode,
 // extern int scorw_get_log_file_name_attr(struct inode *inode, char *name);
 extern ssize_t ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from);
 loff_t scorw_write_see_thru_ro(struct file *file, struct iov_iter *i,
-                               loff_t pos);
+                               loff_t pos, int *out_status);
 void write_offset_log(struct inode *l_inode, loff_t offset, int len, void *ptr);
 int scorw_internal_copy_blocks(struct file *file, loff_t src_pos,
                                loff_t dest_pos, size_t len);
@@ -456,7 +449,8 @@ unsigned long scorw_lookup_physical_block(struct scorw_inode *s_inode,
                                           unsigned long target_logical_blk);
 int scorw_record_write(struct scorw_inode *s_inode, unsigned long logical_blk,
                        unsigned long physical_blk, unsigned int len,
-                       int status);
+                       int status, __u32 data_crc);
+void scorw_write_see_thru_ro_end(struct file *file, unsigned long target_logical_blk, unsigned long appended_ext4_blk, unsigned int nr_blk, int status);
 long scorw_ioctl_see_thru_writev(struct file *file, unsigned long arg);
 long scorw_set_transaction(struct inode * inode , struct file * file , int val);
 int scorw_self_transaction_status(struct inode * inode , struct file* file);
@@ -471,7 +465,5 @@ void scorw_punch_hole_range(struct inode *inode, __u32 start_lblk,
                             __u32 len_blks);
 void scorw_gc_blocks(struct scorw_inode *s_inode);
 int scorw_gc_find_next_active(int target_ver, int *active_vers, int num_active);
-int scorw_gc_parent_log(struct scorw_inode* scorw_inode);
-void scorw_truncate_file(struct inode* inode , loff_t new_size);
 // MAHA_VERSION_AARSH_end
 #endif
