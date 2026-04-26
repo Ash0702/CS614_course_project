@@ -13,7 +13,7 @@ echo "--> Initializing Parent and Child (10 blocks)..."
 
 echo "-------------------------------------------------------"
 echo "Setup complete."
-echo ">> GO TO TERMINAL 2 NOW AND RUN: ./term2_reader.sh <<"
+echo ">> GO TO TERMINAL 2 NOW AND RUN: ./reader_test.sh <<"
 echo "-------------------------------------------------------"
 
 read -p "Press [ENTER] to start Transaction 1 (Overwriting Blocks 0-4)..."
