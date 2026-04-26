@@ -1,4 +1,4 @@
-```
+
 # Transactional Versioning for FlexClone System
 
 This project implements a parent-centric, versioned storage architecture for the Flexclone filesystem framework. By consolidating all physical data into a single append-only parent file, child files function as lightweight metadata pointers to specific versions. 
@@ -83,4 +83,4 @@ The child file will now reflect the latest data committed to the parent.
 - **Log-Based Mapping:** A dedicated log file tracks version IDs to physical disk locations.
 - **Atomic Commits:** Uses custom ioctl bounds to ensure intermediate states are never exposed to child views.
 - **Garbage Collection:** Automatically frees blocks no longer referenced by any active Flexclone version.
-```
+
