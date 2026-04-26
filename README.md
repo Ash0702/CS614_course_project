@@ -5,6 +5,8 @@ This project implements a parent-centric, versioned storage architecture for the
 
 The system guarantees crash consistency and data integrity through transactional ioctls, CRC-based verification, and atomic commits. A dedicated log file manages logical-to-physical version mapping, while a background garbage collector reclaims unused blocks, ensuring high performance for file cloning and point-in-time recovery.
 
+The other version which uses CRC checksum instead of fsync for crash consistency can be found in "CRC" branch
+
 ## Authors
 - Aarsh Jain
 - Pranay Surepally
