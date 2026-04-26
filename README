@@ -1,4 +1,4 @@
-```
+
 # Transactional Versioning for FlexClone System
 
 This project implements a parent-centric, versioned storage architecture for the Flexclone filesystem framework. By consolidating all physical data into a single append-only parent file, child files function as lightweight metadata pointers to specific versions. 
@@ -27,6 +27,7 @@ The system guarantees crash consistency and data integrity through transactional
 - Copy the "binaries" to /flexclone_mtpt, as it contains all the neccessary binaries for testing
 - Use /utils_AARSH/setxattr.c to set parent-child-log-friend relation
 - Use /utils_AARSH/update_chilfs.c to update a child via IOCTL call
+- Incase you have flexclone previously installed, you can simply replace mm/filemap.c and fs/ext4-module with our versions, and hit make.
 
 ## Usage Guide
 
@@ -83,4 +84,4 @@ The child file will now reflect the latest data committed to the parent.
 - **Log-Based Mapping:** A dedicated log file tracks version IDs to physical disk locations.
 - **Atomic Commits:** Uses custom ioctl bounds to ensure intermediate states are never exposed to child views.
 - **Garbage Collection:** Automatically frees blocks no longer referenced by any active Flexclone version.
-```
+
